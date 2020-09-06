@@ -43,8 +43,10 @@ enum {
     FL_NEG = 1 << 2, /* N */
 };
 
-typedef uint16_t memory[UINT16_MAX];
-typedef uint16_t registers[R_COUNT];
+typedef uint16_t lcword;
+typedef lcword memory[UINT16_MAX];
+typedef lcword registers[R_COUNT];
+
 void init_mem(memory mem){}
 void init_regs(registers regs) {
   regs[R_RUN]=1;
@@ -77,27 +79,27 @@ void op_fn_trap(memory mem, registers regs) {}
 // Holds a list of functions that are used to execute instructions
 typedef void (*inst_funcs[OP_COUNT])(memory, registers);
 
-void init_executers(inst_funcs executers) {
-  executers[OP_ADD] = &op_fn_add;
-  executers[OP_BR] = &op_fn_br;
-  executers[OP_ADD] = &op_fn_add;
-  executers[OP_LD] = &op_fn_ld;
-  executers[OP_ST] = &op_fn_st;
-  executers[OP_JSR] = &op_fn_jsr;
-  executers[OP_AND] = &op_fn_and;
-  executers[OP_LDR] = &op_fn_ldr;
-  executers[OP_STR] = &op_fn_str;
-  executers[OP_RTI] = &op_fn_rti;
-  executers[OP_NOT] = &op_fn_not;
-  executers[OP_LDI] = &op_fn_ldi;
-  executers[OP_STI] = &op_fn_sti;
-  executers[OP_JMP] = &op_fn_jmp;
-  executers[OP_RES] = &op_fn_res;
-  executers[OP_LEA] = &op_fn_lea;
-  executers[OP_TRAP] = &op_fn_trap;
+void init_inst_fns(inst_funcs inst_fns) {
+  inst_fns[OP_ADD] = &op_fn_add;
+  inst_fns[OP_BR] = &op_fn_br;
+  inst_fns[OP_ADD] = &op_fn_add;
+  inst_fns[OP_LD] = &op_fn_ld;
+  inst_fns[OP_ST] = &op_fn_st;
+  inst_fns[OP_JSR] = &op_fn_jsr;
+  inst_fns[OP_AND] = &op_fn_and;
+  inst_fns[OP_LDR] = &op_fn_ldr;
+  inst_fns[OP_STR] = &op_fn_str;
+  inst_fns[OP_RTI] = &op_fn_rti;
+  inst_fns[OP_NOT] = &op_fn_not;
+  inst_fns[OP_LDI] = &op_fn_ldi;
+  inst_fns[OP_STI] = &op_fn_sti;
+  inst_fns[OP_JMP] = &op_fn_jmp;
+  inst_fns[OP_RES] = &op_fn_res;
+  inst_fns[OP_LEA] = &op_fn_lea;
+  inst_fns[OP_TRAP] = &op_fn_trap;
 }
 
-void printBinary(uint16_t i) {
+void printBinary(lcword i) {
   while(i != 0){
     printf("%d", i%2);
     i = i / 2;
@@ -106,29 +108,29 @@ void printBinary(uint16_t i) {
 }
 
 // Executes the program until it terminates
-void exec_program(inst_funcs executers, memory mem, registers regs) {
+void exec_program(inst_funcs inst_fns, memory mem, registers regs) {
   while(regs[R_RUN]){
-    uint16_t inst = mem[regs[R_PC]++];
+    lcword inst = mem[regs[R_PC]++];
     printf("INST START> \n");
     printBinary(2);
-    uint16_t op = inst >> 12;
+    lcword op = inst >> 12;
     if(OP_COUNT <= op){
       fail("Unrecognized instruction");
     }
-    executers[op](mem, regs);
+    inst_fns[op](mem, regs);
   }
 }
 
 int main(int argc, const char *argv[]) {
-  inst_funcs executers;
+  inst_funcs inst_fns;
   memory mem;
   registers regs;
 
-  init_executers(executers);
+  init_inst_fns(inst_fns);
   init_mem(mem);
   init_regs(regs);
 
-  exec_program(executers, mem, regs);
+  exec_program(inst_fns, mem, regs);
 
   return 0;
 }
