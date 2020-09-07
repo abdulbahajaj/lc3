@@ -1,6 +1,8 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
+#include <stdio.h>
 
 enum {
   R_R0 = 0,
