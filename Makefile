@@ -4,7 +4,4 @@ build: src/*
 
 .PHONY: run
 run: build
-	./bin/a.out
-
-default:
-	echo HI
+	./bin/a.out images/rogue.obj
