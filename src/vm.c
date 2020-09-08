@@ -58,6 +58,17 @@ void fail(char *message) {
   exit(1);
 }
 
+lcword sign_extend(lcword num, int bit_count) {
+  if ((num >> (bit_count - 1)) & 1) {
+    num |= (0xFFFF << bit_count);
+  }
+  return num;
+}
+
+lcword read_mem(memory mem, lcword address) {
+    return mem[address];
+}
+
 lcword sub_binary(lcword word, lcword start, lcword bits_count) {
   lcword end = bits_count + start;
   lcword word_bit_size = sizeof(lcword) * CHAR_BIT;
@@ -78,11 +89,11 @@ void op_fn_add(lcword inst, memory mem, registers regs) {
   
   lcword mode = sub_binary(inst, 5, 1);
   lcword num2;
-  if(!mode){
+  if(mode){
+    num2 = sign_extend(sub_binary(inst, 0, 5), 5);
+  } else {
     lcword src2 = sub_binary(inst, 0, 3);
     num2 = regs[src2];
-  } else {
-    num2 = sub_binary(inst, 0, 5);
   }
   
   lcword dest = sub_binary(inst, 9, 3);
@@ -95,12 +106,36 @@ void op_fn_ld(lcword inst, memory mem, registers regs) {
 }
 void op_fn_st(lcword inst, memory mem, registers regs) {printf("op_fn_st\n");}
 void op_fn_jsr(lcword inst, memory mem, registers regs) {printf("op_fn_jsr\n");}
-void op_fn_and(lcword inst, memory mem, registers regs) {printf("op_fn_and\n");}
+void op_fn_and(lcword inst, memory mem, registers regs) {
+  lcword src1 = sub_binary(inst, 6, 3);
+  lcword num1 = regs[src1];
+
+  lcword num2;
+  
+  lcword mode = sub_binary(inst, 5, 1);
+  if(mode){
+    num2 = sign_extend(sub_binary(inst, 0, 5), 5);
+  } else {
+    lcword src2 = sub_binary(inst, 0, 2);
+    num2 = regs[src2];
+  }
+
+  lcword dest = sub_binary(inst, 9, 3);
+  regs[dest] = num1 & num2;
+
+  printf("op_fn_and\n");
+}
+
 void op_fn_ldr(lcword inst, memory mem, registers regs) {printf("op_fn_ldr\n");}
 void op_fn_str(lcword inst, memory mem, registers regs) {printf("op_fn_str\n");}
 void op_fn_rti(lcword inst, memory mem, registers regs) {printf("op_fn_rti\n");}
 void op_fn_not(lcword inst, memory mem, registers regs) {printf("op_fn_not\n");}
-void op_fn_ldi(lcword inst, memory mem, registers regs) {printf("op_fn_ldi\n");}
+void op_fn_ldi(lcword inst, memory mem, registers regs) {
+  lcword dest = sub_binary(inst, 9, 3);
+  lcword pc_offset = sign_extend(sub_binary(inst, 0, 8), 8);
+  regs[dest] = read_mem(mem, read_mem(mem, regs[R_PC] + pc_offset));
+  printf("op_fn_ldi\n");
+}
 void op_fn_sti(lcword inst, memory mem, registers regs) {printf("op_fn_sti\n");}
 void op_fn_jmp(lcword inst, memory mem, registers regs) {printf("op_fn_jmp\n");}
 void op_fn_res(lcword inst, memory mem, registers regs) {printf("op_fn_res\n");}
