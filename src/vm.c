@@ -551,9 +551,6 @@ void expect(lcword result, lcword expected, int *is_match) {
 void expect_signcheck(lcword result, lcword expected, registers regs,
 		      int *is_match) {
   expect(result, expected, is_match);
-  lcword sign_check = (result > 0 && regs[R_COND] == FL_POS) ||
-		      (result == 0 && regs[R_COND] == FL_ZRO) ||
-		      (result < 0 && regs[R_COND] == FL_NEG);
   if ((result >> 15) == 1) {
     if (regs[R_COND] != FL_NEG) {
       printf(
