@@ -1,0 +1,6 @@
+* LC3 Arch VM
+A virtual machine that simulates LC3 architecture.
+
+* References
+1. https://justinmeiners.github.io/lc3-vm/supplies/lc3-isa.pdf
+2. https://justinmeiners.github.io/lc3-vm/
