@@ -1,11 +1,11 @@
+#include <fcntl.h>
 #include <limits.h>
+#include <math.h>
+#include <signal.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <signal.h>
 #include <string.h>
-#include <fcntl.h>
-#include <math.h>
 #include <sys/mman.h>
 #include <sys/termios.h>
 #include <sys/time.h>
@@ -27,7 +27,7 @@ enum {
   R_R7,
   R_PC, /* program counter */
   R_COND,
-  R_RUN, /* terminate the program if value equal to 1 */
+  R_RUN, /* terminate the program if value equal to 0 */
   R_COUNT,
 };
 
@@ -68,7 +68,7 @@ enum {
 
 enum {
   FL_POS = 1,
-  FL_ZRO = 1 << 1, 
+  FL_ZRO = 1 << 1,
   FL_NEG = 1 << 2,
 };
 
@@ -110,9 +110,7 @@ void handle_interrupt(int signal) {
   exit(-2);
 }
 
-void mem_write(memory mem, lcword address, lcword val) {
-  mem[address] = val;
-}
+void mem_write(memory mem, lcword address, lcword val) { mem[address] = val; }
 
 lcword bin_to_dec(const char *binary) {
   int count = 0;
@@ -402,7 +400,6 @@ void op_fn_lea(lcword inst, memory mem, registers regs) {
 #endif
 }
 
-
 void op_fn_trap(lcword inst, memory mem, registers regs) {
   lcword trapvec = inst & 0xFF;
   switch (trapvec) {
@@ -412,17 +409,15 @@ void op_fn_trap(lcword inst, memory mem, registers regs) {
   case TRAP_OUT:
     putc(regs[R_R0] & 0xFF, stdout);
     break;
-  case TRAP_PUTS:
-    {
-      lcword* cursor = mem + regs[R_R0];
-      while(*cursor){
-	putc(*cursor & 0xFF, stdout);
-	cursor++;
-      }
-      fflush(stdout);
+  case TRAP_PUTS: {
+    lcword *cursor = mem + regs[R_R0];
+    while (*cursor) {
+      putc(*cursor & 0xFF, stdout);
+      cursor++;
     }
-    break;
-  case TRAP_IN: 
+    fflush(stdout);
+  } break;
+  case TRAP_IN:
     fprintf(stdout, "Enter a character: ");
     fflush(stdout);
     {
@@ -432,25 +427,23 @@ void op_fn_trap(lcword inst, memory mem, registers regs) {
       regs[R_R0] = character;
     }
     break;
-  case TRAP_PUTSP:
-    {
-      lcword* cursor = mem + regs[R_R0];
-      while(*cursor){
-	putc((char)(*cursor & 0xFF), stdout);
+  case TRAP_PUTSP: {
+    lcword *cursor = mem + regs[R_R0];
+    while (*cursor) {
+      putc((char)(*cursor & 0xFF), stdout);
 
-	char character = (*cursor >> 8) & 0xFF;
-	if(character) {
-	  putc(character, stdout);
-	}
-	cursor++;
-	fflush(stdout);
+      char character = (*cursor >> 8) & 0xFF;
+      if (character) {
+	putc(character, stdout);
       }
+      cursor++;
+      fflush(stdout);
     }
-    break;
+  } break;
   case TRAP_HALT:
     fprintf(stdout, "Program halting...");
     fflush(stdout);
-    regs[R_RUN]=0;
+    regs[R_RUN] = 0;
     break;
   default:
     fail("Unrecognized trapvec");
@@ -597,7 +590,8 @@ int test_op_fn_br(memory mem, registers regs) {
   expect(test_helper_br(FL_ZRO, FL_NEG, 30, -20, mem, regs), 30, &result);
   expect(test_helper_br(FL_POS, FL_NEG, 30, -20, mem, regs), 30, &result);
   expect(test_helper_br(FL_NEG, FL_POS, 30, -20, mem, regs), 30, &result);
-  expect(test_helper_br(FL_NEG | FL_ZRO, FL_POS, 30, -20, mem, regs), 30, &result);
+  expect(test_helper_br(FL_NEG | FL_ZRO, FL_POS, 30, -20, mem, regs), 30,
+	 &result);
   return result;
 }
 
@@ -639,7 +633,8 @@ int test_op_fn_add(memory mem, registers regs) {
   return result;
 }
 
-int test_helper_ld(lcword dest, lcword pc, lcword offset, lcword value, memory mem, registers regs) {
+int test_helper_ld(lcword dest, lcword pc, lcword offset, lcword value,
+		   memory mem, registers regs) {
   mem_write(mem, offset, value);
   lcword inst = 2 << 12 | (0x7 & dest) << 9 | (0xFF & offset);
   op_fn_ld(inst, mem, regs);
@@ -647,14 +642,19 @@ int test_helper_ld(lcword dest, lcword pc, lcword offset, lcword value, memory m
 }
 int test_op_fn_ld(memory mem, registers regs) {
   int result = 1;
-  expect_signcheck(test_helper_ld(R_R0, 2, 42, 20, mem, regs), 20, regs, &result);
-  expect_signcheck(test_helper_ld(R_R0, 550, 102, 19, mem, regs), 19, regs, &result);
-  expect_signcheck(test_helper_ld(R_R0, 550, 102, -19, mem, regs), -19, regs, &result);
-  expect_signcheck(test_helper_ld(R_R0, 550, 102, 0, mem, regs), 0, regs, &result);
+  expect_signcheck(test_helper_ld(R_R0, 2, 42, 20, mem, regs), 20, regs,
+		   &result);
+  expect_signcheck(test_helper_ld(R_R0, 550, 102, 19, mem, regs), 19, regs,
+		   &result);
+  expect_signcheck(test_helper_ld(R_R0, 550, 102, -19, mem, regs), -19, regs,
+		   &result);
+  expect_signcheck(test_helper_ld(R_R0, 550, 102, 0, mem, regs), 0, regs,
+		   &result);
   return result;
 }
 
-int test_helper_st(lcword pc, lcword src, lcword offset, lcword val, memory mem, registers regs) {
+int test_helper_st(lcword pc, lcword src, lcword offset, lcword val, memory mem,
+		   registers regs) {
   regs[R_PC] = pc;
   regs[src] = val;
   lcword inst = 3 << 12 | (7 & src) << 9 | (0x1FF & offset);
@@ -685,13 +685,14 @@ int test_helper_jsr2(int base_r, memory mem, registers regs) {
   return regs[R_PC];
 }
 
-void test_helper_jsr(int base_r, lcword offset, int* result, memory mem, registers regs) {
+void test_helper_jsr(int base_r, lcword offset, int *result, memory mem,
+		     registers regs) {
   lcword pre = regs[R_PC];
   regs[base_r] = offset;
   expect(test_helper_jsr2(base_r, mem, regs), offset, result);
   expect(regs[R_R7], pre, result);
 
-  expect(test_helper_jsr1(offset, mem, regs), 2*offset, result);
+  expect(test_helper_jsr1(offset, mem, regs), 2 * offset, result);
   expect(regs[R_R7], offset, result);
 }
 
@@ -753,26 +754,33 @@ int test_op_fn_and(memory mem, registers regs) {
   return result;
 }
 
-int test_helper_ldr(lcword dest, lcword base_r, lcword base_r_val, lcword offset, lcword val, memory mem, registers regs) {
+int test_helper_ldr(lcword dest, lcword base_r, lcword base_r_val,
+		    lcword offset, lcword val, memory mem, registers regs) {
   regs[base_r] = base_r_val;
   mem_write(mem, regs[base_r] + offset, val);
-  lcword inst = 6 << 12 | (0x7 & dest) << 9 | (0x7 & base_r) << 6 | (0x3f & offset);
+  lcword inst =
+      6 << 12 | (0x7 & dest) << 9 | (0x7 & base_r) << 6 | (0x3f & offset);
   op_fn_ldr(inst, mem, regs);
   return regs[dest];
 }
 
 int test_op_fn_ldr(memory mem, registers regs) {
   int result = 1;
-  expect_signcheck(test_helper_ldr(R_R0, R_R2, 85, 20, 200, mem, regs), 200, regs, &result);
-  expect_signcheck(test_helper_ldr(R_R0, R_R2, 85, -20, 200, mem, regs), 200, regs, &result);
-  expect_signcheck(test_helper_ldr(R_R0, R_R2, 85, -20, 0, mem, regs), 0, regs, &result);
-  expect_signcheck(test_helper_ldr(R_R0, R_R2, 85, -20, -29, mem, regs), -29, regs, &result);
+  expect_signcheck(test_helper_ldr(R_R0, R_R2, 85, 20, 200, mem, regs), 200,
+		   regs, &result);
+  expect_signcheck(test_helper_ldr(R_R0, R_R2, 85, -20, 200, mem, regs), 200,
+		   regs, &result);
+  expect_signcheck(test_helper_ldr(R_R0, R_R2, 85, -20, 0, mem, regs), 0, regs,
+		   &result);
+  expect_signcheck(test_helper_ldr(R_R0, R_R2, 85, -20, -29, mem, regs), -29,
+		   regs, &result);
   return result;
 }
 int test_op_fn_str(memory mem, registers regs) { return 1; }
 int test_op_fn_rti(memory mem, registers regs) { return 1; }
 
-int test_helper_not(lcword src, lcword dest, lcword val, memory mem, registers regs) {
+int test_helper_not(lcword src, lcword dest, lcword val, memory mem,
+		    registers regs) {
   regs[src] = val;
   lcword inst = 9 << 12 | dest << 9 | src << 6 | 0x3F;
   op_fn_not(inst, mem, regs);
@@ -781,34 +789,43 @@ int test_helper_not(lcword src, lcword dest, lcword val, memory mem, registers r
 
 int test_op_fn_not(memory mem, registers regs) {
   int result = 1;
-  expect_signcheck(test_helper_not(R_R0, R_R1, 20, mem, regs), ~20, regs, &result);
-  expect_signcheck(test_helper_not(R_R0, R_R1, 30, mem, regs), ~30, regs, &result);
-  expect_signcheck(test_helper_not(R_R0, R_R1, -30, mem, regs), ~-30, regs, &result);
-  expect_signcheck(test_helper_not(R_R0, R_R1, -0, mem, regs), ~0, regs, &result);
+  expect_signcheck(test_helper_not(R_R0, R_R1, 20, mem, regs), ~20, regs,
+		   &result);
+  expect_signcheck(test_helper_not(R_R0, R_R1, 30, mem, regs), ~30, regs,
+		   &result);
+  expect_signcheck(test_helper_not(R_R0, R_R1, -30, mem, regs), ~-30, regs,
+		   &result);
+  expect_signcheck(test_helper_not(R_R0, R_R1, -0, mem, regs), ~0, regs,
+		   &result);
   return result;
 }
 
-int test_helper_ldi(lcword dest, lcword pc, lcword poffset, lcword voffset, lcword value, memory mem, registers regs) {
+int test_helper_ldi(lcword dest, lcword pc, lcword poffset, lcword voffset,
+		    lcword value, memory mem, registers regs) {
   regs[R_PC] = pc;
   mem_write(mem, regs[R_PC] + poffset, voffset);
   mem_write(mem, voffset, value);
 
-  lcword inst = 10 << 12 | (0x7 & dest) << 9 | ( 0x1FF & poffset);
+  lcword inst = 10 << 12 | (0x7 & dest) << 9 | (0x1FF & poffset);
   op_fn_ldi(inst, mem, regs);
-  
+
   return regs[dest];
 }
 
 int test_op_fn_ldi(memory mem, registers regs) {
   int result = 1;
-  expect_signcheck(test_helper_ldi(R_R0, 43, 60, 123, 200, mem, regs), 200, regs, &result);
-  expect_signcheck(test_helper_ldi(R_R0, 43, 60, 123, -200, mem, regs), -200, regs, &result);
-  expect_signcheck(test_helper_ldi(R_R0, 43, 60, 123, 0, mem, regs), 0, regs, &result);
+  expect_signcheck(test_helper_ldi(R_R0, 43, 60, 123, 200, mem, regs), 200,
+		   regs, &result);
+  expect_signcheck(test_helper_ldi(R_R0, 43, 60, 123, -200, mem, regs), -200,
+		   regs, &result);
+  expect_signcheck(test_helper_ldi(R_R0, 43, 60, 123, 0, mem, regs), 0, regs,
+		   &result);
   return result;
 }
 int test_op_fn_sti(memory mem, registers regs) { return 1; }
 
-int test_helper_jmp(lcword base_r, lcword location, memory mem, registers regs) {
+int test_helper_jmp(lcword base_r, lcword location, memory mem,
+		    registers regs) {
   regs[base_r] = location;
   lcword inst = bin_to_dec("1100") << 12 | base_r << 6;
   op_fn_jmp(inst, mem, regs);
@@ -819,11 +836,12 @@ int test_op_fn_jmp(memory mem, registers regs) {
   expect(test_helper_jmp(R_R0, 4, mem, regs), 4, &result);
   expect(test_helper_jmp(R_R7, 0, mem, regs), 0, &result);
   expect(test_helper_jmp(R_R5, 291, mem, regs), 291, &result);
-  
+
   return result;
 }
 
-int test_helper_lea(lcword dest, lcword pc, lcword offset,  memory mem, registers regs) {
+int test_helper_lea(lcword dest, lcword pc, lcword offset, memory mem,
+		    registers regs) {
   regs[R_PC] = pc;
   lcword inst = 14 << 12 | (0x7 & dest) << 9 | (0x1FF & offset);
   op_fn_lea(inst, mem, regs);
@@ -832,8 +850,10 @@ int test_helper_lea(lcword dest, lcword pc, lcword offset,  memory mem, register
 
 int test_op_fn_lea(memory mem, registers regs) {
   int result = 1;
-  expect_signcheck(test_helper_lea(R_R0, 10,  20, mem, regs), 10 + 20 , regs, &result);
-  expect_signcheck(test_helper_lea(R_R0, 60,  -20, mem, regs), 60 - 20, regs, &result);
+  expect_signcheck(test_helper_lea(R_R0, 10, 20, mem, regs), 10 + 20, regs,
+		   &result);
+  expect_signcheck(test_helper_lea(R_R0, 60, -20, mem, regs), 60 - 20, regs,
+		   &result);
   return result;
 }
 
@@ -841,8 +861,8 @@ void run_all_tests() {
   int (*all_tests[OP_COUNT])(memory, registers) = {
       test_op_fn_br,  test_op_fn_add, test_op_fn_ld,  test_op_fn_st,
       test_op_fn_jsr, test_op_fn_and, test_op_fn_ldr, test_op_fn_str,
-       test_op_fn_not, test_op_fn_ldi, test_op_fn_sti,
-      test_op_fn_jmp, test_op_fn_lea };
+      test_op_fn_not, test_op_fn_ldi, test_op_fn_sti, test_op_fn_jmp,
+      test_op_fn_lea};
 
   int all_passed = 1;
 
